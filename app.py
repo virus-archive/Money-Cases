@@ -10,10 +10,8 @@ from functools import wraps
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-123')
 
-# Добавляем этот код
-@app.before_first_request
-def initialize_database():
-    init_db()
+# Инициализируем БД при старте
+init_db()
 
 # Получаем URL базы данных из переменной окружения (будет установлена в Render)
 DATABASE_URL = os.environ.get('DATABASE_URL')
