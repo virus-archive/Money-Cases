@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoneyCases - Вход</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, system-ui, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #4a1d96, #312e81);
+            color: white;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 1rem;
+            width: 100%;
+            max-width: 400px;
+            backdrop-filter: blur(10px);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 1rem;
+            font-size: 2rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1rem;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #22c55e;
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 0.5rem;
+            background: #22c55e;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #16a34a;
+        }
+
+        .error {
+            color: #ef4444;
+            margin-top: 0.5rem;
+            display: none;
+        }
+
+        .success {
+            color: #4ade80;
+            margin-top: 0.5rem;
+            display: none;
+        }
+
+        .toggle-form {
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .toggle-form a {
+            color: #4ade80;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .toggle-form a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><img src="{{ url_for('static', filename='img/logo.png') }}" height="50"></h1>
+        <!-- Форма входа -->
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="loginUsername">Логин</label>
+                <input type="text" id="loginUsername" required>
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">Пароль</label>
+                <input type="password" id="loginPassword" required>
+            </div>
+            <button type="submit">Войти</button>
+            <div class="error" id="loginError"></div>
+            <div class="success" id="loginSuccess"></div>
+            <div class="toggle-form">
+                <a id="showRegister">Создать аккаунт</a>
+            </div>
+        </form>
+
+        <!-- Форма регистрации -->
+        <form id="registerForm" style="display: none;">
+            <div class="form-group">
+                <label for="registerUsername">Логин</label>
+                <input type="text" id="registerUsername" required>
+            </div>
+            <div class="form-group">
+                <label for="registerPassword">Пароль</label>
+                <input type="password" id="registerPassword" required>
+            </div>
+            <div class="form-group">
+                <label for="confirmPassword">Подтверждение пароля</label>
+                <input type="password" id="confirmPassword" required>
+            </div>
+            <button type="submit">Зарегистрироваться</button>
+            <div class="error" id="registerError"></div>
+            <div class="success" id="registerSuccess"></div>
+            <div class="toggle-form">
+                <a id="showLogin">Уже есть аккаунт? Войти</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            const showRegister = document.getElementById('showRegister');
+            const showLogin = document.getElementById('showLogin');
+
+            function showError(elementId, message) {
+                const errorDiv = document.getElementById(elementId);
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+                setTimeout(() => {
+                    errorDiv.style.display = 'none';
+                }, 3000);
+            }
+
+            function showSuccess(elementId, message) {
+                const successDiv = document.getElementById(elementId);
+                successDiv.textContent = message;
+                successDiv.style.display = 'block';
+                setTimeout(() => {
+                    successDiv.style.display = 'none';
+                }, 3000);
+            }
+
+            showRegister.addEventListener('click', () => {
+                loginForm.style.display = 'none';
+                registerForm.style.display = 'block';
+            });
+
+            showLogin.addEventListener('click', () => {
+                registerForm.style.display = 'none';
+                loginForm.style.display = 'block';
+            });
+
+            registerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = document.getElementById('registerUsername').value;
+                const password = document.getElementById('registerPassword').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+
+                if (password !== confirmPassword) {
+                    showError('registerError', 'Пароли не совпадают');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/register', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username, password })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        showSuccess('registerSuccess', 'Регистрация успешна!');
+                        registerForm.reset();
+                        
+                        setTimeout(() => {
+                            registerForm.style.display = 'none';
+                            loginForm.style.display = 'block';
+                        }, 2000);
+                    } else {
+                        showError('registerError', data.error || 'Ошибка регистрации');
+                    }
+                } catch (error) {
+                    showError('registerError', 'Ошибка сервера');
+                }
+            });
+
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = document.getElementById('loginUsername').value;
+                const password = document.getElementById('loginPassword').value;
+
+                try {
+                    const response = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username, password })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        showSuccess('loginSuccess', 'Вход выполнен успешно!');
+                        localStorage.setItem('authToken', data.token);
+                        localStorage.setItem('username', data.username);
+                        
+                        setTimeout(() => {
+                            window.location.href = '/game?token=' + data.token;
+                        }, 1000);
+                    } else {
+                        showError('loginError', data.error || 'Неверный логин или пароль');
+                    }
+                } catch (error) {
+                    showError('loginError', 'Ошибка сервера');
+                }
+            });
+
+            // Проверяем, есть ли сохраненный токен
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                window.location.href = '/game?token=' + token;
+            }
+        });
+    </script>
+</body>
+</html>

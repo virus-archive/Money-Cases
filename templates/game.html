@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoneyCases</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <button class="settings-btn" onclick="openSettings()">
+            <i class="fa fa-cog"></i>
+        </button>
+
+        <div class="game-card">
+            <div class="header">
+                <h1 class="title"><img src="{{ url_for('static', filename='img/logo.png') }}" height="50"></h1>
+                <div class="money" id="money">0₽</div>
+                <div class="income" id="income">Доход в секунду: 0₽</div>
+            </div>
+
+            <div class="actions">
+                <button class="btn btn-earn" id="earnBtn">
+                    <i class="fa fa-coins"></i> +0.01₽
+                </button>
+                <button class="tab" onclick="switchTab('transactions')">
+                    <i class="fa fa-exchange-alt"></i> Транзакции
+                </button>
+            </div>
+
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('businesses')">
+                    <i class="fa fa-building"></i> Бизнесы
+                </button>
+                <button class="tab" onclick="switchTab('cases')">
+                    <i class="fa fa-briefcase"></i> Кейсы
+                </button>
+                <button class="tab" onclick="switchTab('shop')">
+                    <i class="fa fa-shopping-bag"></i> Магазин
+                </button>
+            </div>
+
+            <div id="businessesTab" class="tab-content active">
+                <div class="businesses" id="businesses"></div>
+            </div>
+
+            <div id="casesTab" class="tab-content">
+                <div class="cases" id="cases"></div>
+            </div>
+            <div id="shopTab" class="tab-content">
+                <div class="shop" id="shop"></div>
+            </div>
+
+            <div id="transactionsTab" class="tab-content">
+                <div class="transactions-container">
+                    <div class="transfer-section">
+                        <h3>Создать перевод</h3>
+                        <div class="transfer-form">
+                            <div class="transfer-input">
+                                <i class="fa fa-user"></i>
+                                <input type="text" id="receiverUsername" placeholder="Получатель" min="0" step="0.01">
+                            </div>
+                            <div class="transfer-input">
+                                <i class="fa fa-usd"></i>
+                                <input type="number" id="transferAmount" placeholder="Сумма перевода" min="0" step="0.01">
+                            </div>
+
+                            <button onclick="makeTransfer()" class="btn btn-transfer">
+                                Перевести
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="history-section">
+                        <h3>История переводов</h3>
+                        <div id="transactionHistory" class="transaction-list">
+                            <!-- История транзакций будет добавлена через JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Настройки</h2>
+                <button class="close" onclick="closeSettings()">&times;</button>
+            </div>
+            <div class="settings-group">
+                <label>Валюта:</label>
+                <select id="currencySelect" onchange="updateSettings()">
+                    <option value="RUB">Рубль (₽)</option>
+                    <option value="USD">Доллар ($)</option>
+                    <option value="EUR">Евро (€)</option>
+                </select>
+            </div>
+            <div class="settings-group">
+                <label>Формат чисел:</label>
+                <select id="numberFormatSelect" onchange="updateSettings()">
+                    <option value="full">Полный (1,000,000)</option>
+                    <option value="short">Сокращенный (1M)</option>
+                </select>
+            </div>
+            <div class="settings-group">
+                <h3>Информация об аккаунте</h3>
+                <div id="accountInfo">
+                    <p>Логин: <span id="accountUsername"></span></p>
+                    <p>Дата регистрации: <span id="accountCreated"></span></p>
+                    <p>Время в игре: <span id="accountPlaytime"></span></p>
+                    <p>Максимальный баланс: <span id="accountMaxBalance"></span></p>
+                </div>
+                <button onclick="logout()" class="btn-logout">Выйти из аккаунта</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <div id="notification" class="notification"></div>
+    <div id="achievement" class="achievement"></div>
+
+    <script src="{{ url_for('static', filename='js/game.js') }}"></script>
+</body>
+</html>
