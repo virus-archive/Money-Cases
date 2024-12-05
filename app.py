@@ -12,6 +12,8 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-123')
 
 # Получаем URL базы данных из переменной окружения (будет установлена в Render)
 DATABASE_URL = os.environ.get('DATABASE_URL')
+if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
+    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
 def get_db_connection():
     """Создает соединение с базой данных PostgreSQL"""
