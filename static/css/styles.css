@@ -533,7 +533,7 @@
     flex-direction: column;
     gap: 0.0rem;
     margin-top: 1rem;
-    max-height: 400px;
+    max-height: 600px;
     overflow-y: auto;
 }
 
@@ -580,4 +580,8 @@
 
 #accountInfo {
     padding: 1rem 0;
+}
+.no-transactions {
+    padding-top: 0;
+    padding: 1rem;
 }
