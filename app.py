@@ -349,6 +349,7 @@ def make_transaction(current_user):
     data = request.get_json()
     receiver_username = data.get('receiver_username')
     amount = float(data.get('amount', 0))
+    transaction_id = data.get('transaction_id')  # Получаем идентификатор транзакции
 
     if not receiver_username or amount <= 0:
         return jsonify({'error': 'Неверные данные'}), 400
@@ -356,24 +357,48 @@ def make_transaction(current_user):
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                # Находим получателя по логину
+                # Блокируем строки для атомарного обновления
+                cur.execute('BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE')
+                
+                # Проверяем, не существует ли уже такая транзакция
+                cur.execute('''
+                    SELECT id FROM transactions 
+                    WHERE sender_id = %s AND amount = %s 
+                    AND timestamp > NOW() - INTERVAL '1 minute'
+                ''', (current_user['user_id'], amount))
+                
+                if cur.fetchone():
+                    conn.rollback()
+                    return jsonify({'error': 'Дублирование транзакции'}), 400
+
+                # Находим получателя
                 cur.execute('SELECT id FROM users WHERE username = %s', (receiver_username,))
                 receiver = cur.fetchone()
                 
                 if not receiver:
+                    conn.rollback()
                     return jsonify({'error': 'Получатель не найден'}), 404
                     
                 receiver_id = receiver[0]
                 
                 if receiver_id == current_user['user_id']:
+                    conn.rollback()
                     return jsonify({'error': 'Нельзя перевести деньги самому себе'}), 400
                 
-                # Получаем актуальный баланс отправителя
-                send_amount = float(data.get('current_balance', 0))
+                # Получаем актуальное состояние отправителя
+                cur.execute('SELECT game_state FROM game_progress WHERE user_id = %s', 
+                         (current_user['user_id'],))
+                sender_data = cur.fetchone()
+                sender_state = eval(sender_data[0])
                 
-                if send_amount < amount:
+                # Проверяем баланс
+                if sender_state['money'] < amount:
+                    conn.rollback()
                     return jsonify({'error': 'Недостаточно средств'}), 400
-                    
+                
+                # Обновляем баланс отправителя
+                sender_state['money'] = float(sender_state['money']) - amount
+                
                 # Получаем состояние получателя
                 cur.execute('SELECT game_state FROM game_progress WHERE user_id = %s', 
                          (receiver_id,))
@@ -383,9 +408,11 @@ def make_transaction(current_user):
                 # Обновляем баланс получателя
                 receiver_state['money'] = float(receiver_state['money']) + amount
                 
-                # Обновляем состояние получателя
+                # Обновляем состояния в базе данных
                 cur.execute('UPDATE game_progress SET game_state = %s WHERE user_id = %s',
                          (str(receiver_state), receiver_id))
+                cur.execute('UPDATE game_progress SET game_state = %s WHERE user_id = %s',
+                         (str(sender_state), current_user['user_id']))
                          
                 # Записываем транзакцию
                 cur.execute('''
@@ -397,11 +424,12 @@ def make_transaction(current_user):
                 
                 return jsonify({
                     'message': 'Перевод выполнен успешно',
-                    'new_balance': send_amount - amount
+                    'new_balance': sender_state['money']
                 }), 200
+                
     except Exception as e:
+        conn.rollback()
         return jsonify({'error': str(e)}), 500
-
 @app.route('/api/transactions/history', methods=['GET'])
 @token_required
 def get_transactions(current_user):
