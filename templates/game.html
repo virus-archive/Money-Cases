@@ -63,7 +63,11 @@
                             </div>
                             <div class="transfer-input">
                                 <i class="fa fa-usd"></i>
-                                <input type="number" id="transferAmount" placeholder="Сумма перевода" min="0" step="0.01">
+                                <input type="text" 
+                                       id="transferAmount" 
+                                       placeholder="Сумма перевода" 
+                                       oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1').replace(/^(\d*\.\d{2}).*$/,'$1');"
+                                       onblur="if(this.value.length > 0 && !isNaN(this.value)) this.value = parseFloat(this.value).toFixed(2)">
                             </div>
 
                             <button onclick="makeTransfer()" class="btn btn-transfer">
