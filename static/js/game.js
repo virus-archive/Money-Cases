@@ -123,6 +123,7 @@ async function loadGameFromServer() {
             return;
         }
 
+        // Загружаем игровое состояние
         const response = await fetch('/api/load-progress', {
             headers: {
                 'Authorization': 'Bearer ' + token
@@ -131,17 +132,41 @@ async function loadGameFromServer() {
 
         const data = await response.json();
         if (response.ok) {
-            Object.assign(state, data.game_state);
+            // Получаем последние транзакции
+            const transResponse = await fetch('/api/transactions/history', {
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            });
+            const transData = await transResponse.json();
+            
+            // Проверяем, есть ли новые входящие транзакции
+            if (transData.length > 0) {
+                const lastTrans = transData[0];
+                const currentUsername = localStorage.getItem('username');
+                
+                // Если последняя транзакция входящая и новее текущего состояния
+                if (lastTrans.receiver === currentUsername && 
+                    new Date(lastTrans.timestamp) > new Date(data.last_save)) {
+                    // Обновляем состояние из базы данных
+                    Object.assign(state, data.game_state);
+                    showNotification(`Получен перевод: +${formatMoney(lastTrans.amount)}`);
+                } else {
+                    // Если новых транзакций нет, используем текущее состояние
+                    Object.assign(state, data.game_state);
+                }
+            } else {
+                Object.assign(state, data.game_state);
+            }
+            
             totalPlaytime = data.total_playtime || 0;
             lastPlaytimeUpdate = Date.now();
             
-            // Применяем сохраненные настройки к UI
             document.getElementById('currencySelect').value = state.settings.currency;
             document.getElementById('numberFormatSelect').value = state.settings.numberFormat;
             
             updateUI();
             updateAccountInfo();
-            showNotification('Игра загружена');
         } else if (response.status === 404) {
             updateUI();
             updateAccountInfo();
@@ -154,6 +179,37 @@ async function loadGameFromServer() {
         updateUI();
     }
 }
+
+// Функция для проверки новых транзакций
+async function checkNewTransactions() {
+    try {
+        const response = await fetch('/api/transactions/history', {
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('authToken')
+            }
+        });
+        
+        const transactions = await response.json();
+        const currentUsername = localStorage.getItem('username');
+        
+        if (transactions.length > 0) {
+            const lastTrans = transactions[0];
+            
+            // Если есть входящая транзакция и она новее последней проверки
+            if (lastTrans.receiver === currentUsername && 
+                new Date(lastTrans.timestamp) > lastTransactionCheck) {
+                // Обновляем состояние из базы
+                await loadGameFromServer();
+                lastTransactionCheck = new Date(lastTrans.timestamp);
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка проверки транзакций:', error);
+    }
+}
+
+// Добавим глобальную переменную для отслеживания последней проверки
+let lastTransactionCheck = new Date();
 // Обновление информации об аккаунте
 async function updateAccountInfo() {
     try {
@@ -524,6 +580,9 @@ function formatMoney(amount) {
 // }
 
 async function makeTransfer() {
+    const transferButton = document.querySelector('.btn-transfer');
+    if (transferButton.disabled) return; // Предотвращаем повторное выполнение
+    
     const receiverUsername = document.getElementById('receiverUsername').value.trim();
     const amount = parseFloat(document.getElementById('transferAmount').value);
     
@@ -541,8 +600,12 @@ async function makeTransfer() {
         showNotification('Недостаточно средств', 'error');
         return;
     }
-    
+
     try {
+        // Блокируем кнопку
+        transferButton.disabled = true;
+        transferButton.textContent = 'Отправка...';
+        
         const response = await fetch('/api/transactions', {
             method: 'POST',
             headers: {
@@ -552,24 +615,30 @@ async function makeTransfer() {
             body: JSON.stringify({ 
                 receiver_username: receiverUsername, 
                 amount: amount,
-                current_balance: state.money // Передаём текущий баланс
+                current_balance: state.money,
+                transaction_id: Date.now() // Добавляем уникальный идентификатор транзакции
             })
         });
         
         const data = await response.json();
         
         if (response.ok) {
-            state.money = data.new_balance; // Устанавливаем новый баланс
+            state.money = data.new_balance;
             updateUI();
             showNotification('Перевод выполнен успешно');
             document.getElementById('transferAmount').value = '';
             document.getElementById('receiverUsername').value = '';
             loadTransactionHistory();
+            lastTransactionCheck = new Date();
         } else {
             throw new Error(data.error);
         }
     } catch (error) {
         showNotification(error.message, 'error');
+    } finally {
+        // Разблокируем кнопку
+        transferButton.disabled = false;
+        transferButton.textContent = 'Перевести';
     }
 }
 
@@ -637,6 +706,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateUI();
         autoSave();
     }, 1000);
+
+    // Запускаем игровой цикл
+    setInterval(() => {
+        state.money = Number((state.money + calculateIncome()).toFixed(2));
+        updateUI();
+        autoSave();
+    }, 1000);
+
+    // Добавляем проверку новых транзакций каждые 5 секунд
+    setInterval(checkNewTransactions, 5000);
 
     // Сохраняем перед закрытием
     window.addEventListener('beforeunload', () => {
