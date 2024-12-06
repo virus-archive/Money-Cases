@@ -74,7 +74,7 @@ async function autoSave() {
     if (now - lastAutoSave >= 60000) { // каждую минуту
         await saveGameToServer();
         lastAutoSave = now;
-        showNotification('Игра автоматически сохранена');
+        showNotification('Автосохранение!');
     }
 
     // Обновляем время в игре
